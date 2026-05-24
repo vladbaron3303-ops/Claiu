@@ -1,0 +1,207 @@
+<!doctype html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Чертёжник — AI Drafting & Geometry</title>
+<link rel="stylesheet" href="styles.css">
+</head>
+<body>
+
+<header class="topbar">
+  <div class="brand">Чертёжник</div>
+  <nav class="tabs" id="tabs">
+    <button class="tab active" data-tab="drafting">Черчение</button>
+    <button class="tab" data-tab="geometry">Геометрия</button>
+    <button class="tab" data-tab="prompts">Промты</button>
+  </nav>
+  <div class="topbar-right">
+    <button id="btn-render" class="primary">Отрисовать (Ctrl+Enter)</button>
+    <button id="btn-export-png">PNG</button>
+    <button id="btn-export-svg">SVG</button>
+  </div>
+</header>
+
+<main>
+  <!-- DRAFTING -->
+  <section class="page" id="page-drafting">
+    <aside class="side">
+      <div class="panel">
+        <h3>Формат</h3>
+        <select id="d-format">
+          <option value="A4P">A4 (210×297) книжная</option>
+          <option value="A4L" selected>A4 (297×210) альбомная</option>
+          <option value="A3P">A3 (297×420) книжная</option>
+          <option value="A3L">A3 (420×297) альбомная</option>
+          <option value="A2L">A2 (594×420) альбомная</option>
+          <option value="A1L">A1 (841×594) альбомная</option>
+        </select>
+      </div>
+
+      <div class="panel">
+        <h3>Основная надпись</h3>
+        <label>Название <input id="tb-title" value="Деталь"></label>
+        <label>Обозначение <input id="tb-code" value="ИКМ.000000.001"></label>
+        <label>Материал <input id="tb-material" value="Сталь 45 ГОСТ 1050-88"></label>
+        <label>Масштаб <input id="tb-scale" value="1:1"></label>
+        <label>Литера <input id="tb-letter" value="У" maxlength="3"></label>
+        <label>Масса <input id="tb-mass" value=""></label>
+        <label>Разработал <input id="tb-author" value=""></label>
+        <label>Проверил <input id="tb-checker" value=""></label>
+        <label>Утвердил <input id="tb-approver" value=""></label>
+        <label>Лист <input id="tb-sheet" value="1"></label>
+        <label>Листов <input id="tb-sheets" value="1"></label>
+        <label>Дата <input id="tb-date" value=""></label>
+        <label>Школа/Группа <input id="tb-org" value=""></label>
+      </div>
+
+      <div class="panel">
+        <h3>Сетка и инструменты</h3>
+        <label>Сетка 0,5 см
+          <input type="range" id="grid-opacity-d" min="0" max="100" value="35">
+        </label>
+        <label>Толщина основных линий
+          <input type="range" id="line-weight-d" min="3" max="14" value="7" step="1">
+        </label>
+        <label>Прозрачность чертежа
+          <input type="range" id="ink-opacity-d" min="20" max="100" value="100">
+        </label>
+        <label><input type="checkbox" id="snap-d" checked> Привязка к сетке</label>
+        <div class="toolrow">
+          <button data-tool="select" class="tool active">Курсор</button>
+          <button data-tool="ruler" class="tool">Линейка</button>
+          <button data-tool="pan" class="tool">Рука</button>
+        </div>
+        <div class="hint" id="ruler-readout-d">—</div>
+      </div>
+    </aside>
+
+    <div class="work">
+      <div class="canvas-wrap" id="canvas-wrap-d">
+        <canvas id="canvas-d"></canvas>
+      </div>
+      <div class="code-area">
+        <div class="code-head">
+          <span>Код от нейросети — вставь сюда и нажми «Отрисовать»</span>
+          <div>
+            <button id="d-clear">Очистить</button>
+            <button id="d-example">Пример</button>
+          </div>
+        </div>
+        <textarea id="code-d" spellcheck="false" placeholder="# вставьте код DSL, полученный от нейросети"></textarea>
+        <div class="status" id="status-d">Готов.</div>
+      </div>
+    </div>
+  </section>
+
+  <!-- GEOMETRY -->
+  <section class="page hidden" id="page-geometry">
+    <aside class="side">
+      <div class="panel">
+        <h3>Плоскость</h3>
+        <label>Ось Y
+          <select id="g-axis">
+            <option value="down">вниз (экранная)</option>
+            <option value="up" selected>вверх (матем.)</option>
+          </select>
+        </label>
+        <label><input type="checkbox" id="g-show-axes" checked> Показывать оси X/Y</label>
+        <label>Авто-подгонка вида
+          <input type="checkbox" id="g-autofit" checked>
+        </label>
+      </div>
+
+      <div class="panel">
+        <h3>Сетка и инструменты</h3>
+        <label>Сетка 0,5 см
+          <input type="range" id="grid-opacity-g" min="0" max="100" value="40">
+        </label>
+        <label>Толщина линий
+          <input type="range" id="line-weight-g" min="2" max="12" value="5" step="1">
+        </label>
+        <label>Прозрачность чертежа
+          <input type="range" id="ink-opacity-g" min="20" max="100" value="100">
+        </label>
+        <label><input type="checkbox" id="snap-g"> Привязка к сетке</label>
+        <div class="toolrow">
+          <button data-tool="select" class="tool active">Курсор</button>
+          <button data-tool="ruler" class="tool">Линейка</button>
+          <button data-tool="pan" class="tool">Рука</button>
+        </div>
+        <div class="hint" id="ruler-readout-g">—</div>
+      </div>
+
+      <div class="panel">
+        <h3>Подсказки</h3>
+        <div class="hint small">
+          Ось Y направлена вверх: точки A(2,3) ставятся естественно.
+          Используй <code>view</code> для задания области.
+        </div>
+      </div>
+    </aside>
+
+    <div class="work">
+      <div class="canvas-wrap" id="canvas-wrap-g">
+        <canvas id="canvas-g"></canvas>
+      </div>
+      <div class="code-area">
+        <div class="code-head">
+          <span>Код от нейросети — задача геометрии</span>
+          <div>
+            <button id="g-clear">Очистить</button>
+            <button id="g-example">Пример</button>
+          </div>
+        </div>
+        <textarea id="code-g" spellcheck="false" placeholder="# вставьте DSL для геометрической задачи"></textarea>
+        <div class="status" id="status-g">Готов.</div>
+      </div>
+    </div>
+  </section>
+
+  <!-- PROMPTS -->
+  <section class="page hidden" id="page-prompts">
+    <aside class="side">
+      <div class="panel">
+        <h3>Категория</h3>
+        <select id="p-category">
+          <option value="drafting">Черчение</option>
+          <option value="geometry">Геометрия (планиметрия)</option>
+          <option value="stereometry">Стереометрия (проекции)</option>
+          <option value="reference">Справочник DSL</option>
+        </select>
+      </div>
+      <div class="panel">
+        <h3>Семейство нейросети</h3>
+        <select id="p-family">
+          <option value="universal">Универсальный (любая)</option>
+          <option value="gpt">ChatGPT / GPT-5</option>
+          <option value="claude">Claude (Anthropic)</option>
+          <option value="gemini">Gemini (Google)</option>
+          <option value="deepseek">DeepSeek / Qwen</option>
+          <option value="local">Локальные (Llama, Mistral)</option>
+        </select>
+      </div>
+      <div class="panel">
+        <h3>Вариант</h3>
+        <div id="p-variants" class="variants"></div>
+      </div>
+    </aside>
+
+    <div class="work prompts-work">
+      <div class="prompt-head">
+        <h2 id="p-title">—</h2>
+        <button id="p-copy" class="primary">Скопировать</button>
+      </div>
+      <div class="prompt-meta" id="p-meta"></div>
+      <textarea id="p-text" spellcheck="false" readonly></textarea>
+      <div class="status" id="p-status">Выбери категорию, семейство и вариант, затем скопируй промт. Вместе с промтом отправь нейросети картинку задания.</div>
+    </div>
+  </section>
+</main>
+
+<script src="prompts.js"></script>
+<script src="titleblock.js"></script>
+<script src="dsl.js"></script>
+<script src="app.js"></script>
+</body>
+</html>
