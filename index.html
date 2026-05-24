@@ -1,0 +1,236 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>DrawAI — черчение и геометрия по описанию нейросети</title>
+  <link rel="stylesheet" href="css/styles.css" />
+</head>
+<body>
+  <header class="topbar">
+    <div class="brand">
+      <span class="logo">▦</span>
+      <span class="brand-name">DrawAI</span>
+      <span class="brand-sub">черчение · геометрия · промты</span>
+    </div>
+    <nav class="tabs" id="tabs">
+      <button class="tab active" data-tab="drawing">Черчение</button>
+      <button class="tab" data-tab="geometry">Геометрия</button>
+      <button class="tab" data-tab="prompts">Промты</button>
+    </nav>
+    <div class="topbar-actions">
+      <button id="themeToggle" class="icon-btn" title="Переключить тему">◐</button>
+    </div>
+  </header>
+
+  <main id="main">
+
+    <!-- =================== ВКЛАДКА: ЧЕРЧЕНИЕ =================== -->
+    <section class="tab-panel active" id="panel-drawing">
+      <aside class="sidebar">
+        <div class="block">
+          <div class="block-title">Формат листа</div>
+          <select id="d-format" class="select">
+            <option value="A4">A4 (210×297)</option>
+            <option value="A3" selected>A3 (297×420)</option>
+            <option value="A2">A2 (420×594)</option>
+            <option value="A1">A1 (594×841)</option>
+            <option value="A0">A0 (841×1189)</option>
+          </select>
+          <div class="row">
+            <label class="radio"><input type="radio" name="d-orient" value="portrait" /> Книжная</label>
+            <label class="radio"><input type="radio" name="d-orient" value="landscape" checked /> Альбомная</label>
+          </div>
+          <label class="checkbox"><input type="checkbox" id="d-stamp" checked /> Штамп ГОСТ 2.104</label>
+          <label class="checkbox"><input type="checkbox" id="d-frame" checked /> Рамка ГОСТ 2.301</label>
+        </div>
+
+        <div class="block">
+          <div class="block-title">Штамп (основная надпись)</div>
+          <input id="t-name" class="input" placeholder="Наименование" />
+          <input id="t-designation" class="input" placeholder="Обозначение (шифр)" />
+          <div class="row">
+            <input id="t-scale" class="input" placeholder="Масштаб" value="1:1" />
+            <input id="t-mass" class="input" placeholder="Масса" />
+          </div>
+          <input id="t-material" class="input" placeholder="Материал" />
+          <input id="t-author" class="input" placeholder="Разработал" />
+          <input id="t-checker" class="input" placeholder="Проверил" />
+          <input id="t-school" class="input" placeholder="Учеб. заведение / литера" />
+        </div>
+
+        <div class="block">
+          <div class="block-title">Сетка и слой</div>
+          <label class="checkbox"><input type="checkbox" id="d-grid" checked /> Показывать сетку 5 мм</label>
+          <div class="row-label">Прозрачность сетки <span id="d-gridOpacityVal">35%</span></div>
+          <input id="d-gridOpacity" type="range" min="0" max="100" value="35" />
+          <div class="row-label">Шаг сетки, мм</div>
+          <input id="d-gridStep" type="number" value="5" step="0.5" min="0.5" class="input" />
+          <label class="checkbox"><input type="checkbox" id="d-grid10" checked /> Жирная линия каждые 10 клеток</label>
+        </div>
+
+        <div class="block">
+          <div class="block-title">Инструменты</div>
+          <div class="tools">
+            <button class="tool" data-tool="pan" title="Перемещение">✥</button>
+            <button class="tool" data-tool="ruler" title="Линейка">⟺</button>
+            <button class="tool" data-tool="protractor" title="Транспортир">∠</button>
+            <button class="tool" data-tool="point" title="Точка">•</button>
+          </div>
+          <div class="row">
+            <button id="d-zoomIn" class="btn">＋</button>
+            <button id="d-zoomOut" class="btn">－</button>
+            <button id="d-zoomFit" class="btn">⤢ По листу</button>
+          </div>
+          <div class="row">
+            <button id="d-exportSvg" class="btn">SVG</button>
+            <button id="d-exportPng" class="btn">PNG</button>
+            <button id="d-print" class="btn">Печать</button>
+          </div>
+        </div>
+      </aside>
+
+      <div class="workarea">
+        <div class="canvas-wrap" id="d-wrap">
+          <svg id="d-svg" xmlns="http://www.w3.org/2000/svg"></svg>
+          <div class="status" id="d-status">X: 0  Y: 0  мм</div>
+        </div>
+
+        <div class="codepanel">
+          <div class="codepanel-head">
+            <div class="codepanel-title">Код от нейросети (JSON DSL)</div>
+            <div class="codepanel-actions">
+              <button id="d-render" class="btn primary">▶ Отрисовать</button>
+              <button id="d-copyPrompt" class="btn">📋 Скопировать промт</button>
+              <button id="d-example" class="btn">Пример</button>
+              <button id="d-clear" class="btn">Очистить</button>
+            </div>
+          </div>
+          <textarea id="d-code" class="codearea" spellcheck="false" placeholder="Сюда вставьте JSON-описание чертежа, полученное от нейросети, и нажмите «Отрисовать»…"></textarea>
+          <div class="codepanel-foot" id="d-msg"></div>
+        </div>
+      </div>
+    </section>
+
+    <!-- =================== ВКЛАДКА: ГЕОМЕТРИЯ =================== -->
+    <section class="tab-panel" id="panel-geometry">
+      <aside class="sidebar">
+        <div class="block">
+          <div class="block-title">Плоскость</div>
+          <div class="row">
+            <div class="row-label">Ширина, мм</div>
+            <input id="g-w" type="number" value="300" min="50" class="input" />
+          </div>
+          <div class="row">
+            <div class="row-label">Высота, мм</div>
+            <input id="g-h" type="number" value="200" min="50" class="input" />
+          </div>
+          <label class="checkbox"><input type="checkbox" id="g-axes" /> Координатные оси</label>
+        </div>
+
+        <div class="block">
+          <div class="block-title">Сетка</div>
+          <label class="checkbox"><input type="checkbox" id="g-grid" checked /> Показывать сетку 5 мм</label>
+          <div class="row-label">Прозрачность сетки <span id="g-gridOpacityVal">35%</span></div>
+          <input id="g-gridOpacity" type="range" min="0" max="100" value="35" />
+          <div class="row-label">Шаг сетки, мм</div>
+          <input id="g-gridStep" type="number" value="5" step="0.5" min="0.5" class="input" />
+          <label class="checkbox"><input type="checkbox" id="g-grid10" checked /> Жирная линия каждые 10 клеток</label>
+        </div>
+
+        <div class="block">
+          <div class="block-title">Инструменты</div>
+          <div class="tools">
+            <button class="tool" data-tool="pan" title="Перемещение">✥</button>
+            <button class="tool" data-tool="ruler" title="Линейка">⟺</button>
+            <button class="tool" data-tool="protractor" title="Транспортир">∠</button>
+            <button class="tool" data-tool="point" title="Точка">•</button>
+          </div>
+          <div class="row">
+            <button id="g-zoomIn" class="btn">＋</button>
+            <button id="g-zoomOut" class="btn">－</button>
+            <button id="g-zoomFit" class="btn">⤢</button>
+          </div>
+          <div class="row">
+            <button id="g-exportSvg" class="btn">SVG</button>
+            <button id="g-exportPng" class="btn">PNG</button>
+          </div>
+        </div>
+      </aside>
+
+      <div class="workarea">
+        <div class="canvas-wrap" id="g-wrap">
+          <svg id="g-svg" xmlns="http://www.w3.org/2000/svg"></svg>
+          <div class="status" id="g-status">X: 0  Y: 0  мм</div>
+        </div>
+
+        <div class="codepanel">
+          <div class="codepanel-head">
+            <div class="codepanel-title">Код от нейросети (JSON DSL)</div>
+            <div class="codepanel-actions">
+              <button id="g-render" class="btn primary">▶ Отрисовать</button>
+              <button id="g-copyPrompt" class="btn">📋 Скопировать промт</button>
+              <button id="g-example" class="btn">Пример</button>
+              <button id="g-clear" class="btn">Очистить</button>
+            </div>
+          </div>
+          <textarea id="g-code" class="codearea" spellcheck="false" placeholder="Вставьте JSON-описание геометрического построения…"></textarea>
+          <div class="codepanel-foot" id="g-msg"></div>
+        </div>
+      </div>
+    </section>
+
+    <!-- =================== ВКЛАДКА: ПРОМТЫ =================== -->
+    <section class="tab-panel" id="panel-prompts">
+      <aside class="sidebar">
+        <div class="block">
+          <div class="block-title">Назначение</div>
+          <div class="seg" id="p-mode">
+            <button class="seg-btn active" data-mode="drawing">Черчение</button>
+            <button class="seg-btn" data-mode="geometry">Геометрия</button>
+          </div>
+        </div>
+        <div class="block">
+          <div class="block-title">Семейство нейросети</div>
+          <div class="seg vertical" id="p-family">
+            <button class="seg-btn active" data-family="universal">Универсальный</button>
+            <button class="seg-btn" data-family="claude">Claude (Sonnet/Opus)</button>
+            <button class="seg-btn" data-family="gpt">GPT (OpenAI)</button>
+            <button class="seg-btn" data-family="gemini">Gemini (Google)</button>
+            <button class="seg-btn" data-family="local">Локальные (Llama/Mistral)</button>
+          </div>
+        </div>
+        <div class="block info">
+          <div class="block-title">Как пользоваться</div>
+          <ol class="howto">
+            <li>Выберите тип задачи и нейросеть.</li>
+            <li>Нажмите «Скопировать промт».</li>
+            <li>Откройте нейросеть, вставьте промт, прикрепите фото задания.</li>
+            <li>Получите JSON, вставьте на вкладке «Черчение» / «Геометрия» и нажмите «Отрисовать».</li>
+          </ol>
+        </div>
+      </aside>
+
+      <div class="workarea single">
+        <div class="prompt-view">
+          <div class="codepanel-head">
+            <div class="codepanel-title" id="p-title">Промт — универсальный, черчение</div>
+            <div class="codepanel-actions">
+              <button id="p-copy" class="btn primary">📋 Скопировать</button>
+            </div>
+          </div>
+          <textarea id="p-text" class="codearea promptarea" spellcheck="false" readonly></textarea>
+          <div class="codepanel-foot"><span id="p-copied"></span></div>
+        </div>
+      </div>
+    </section>
+
+  </main>
+
+  <script src="js/formats.js"></script>
+  <script src="js/prompts.js"></script>
+  <script src="js/renderer.js"></script>
+  <script src="js/tools.js"></script>
+  <script src="js/app.js"></script>
+</body>
+</html>
