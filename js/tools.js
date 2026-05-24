@@ -11,15 +11,22 @@ function createViewer(svgEl, statusEl) {
   // Структурируем SVG: <defs>, <g class="gridG">, <g class="contentG">, <g class="overlayG">
   while (svgEl.firstChild) svgEl.removeChild(svgEl.firstChild);
   const defs = document.createElementNS(SVG_NS, "defs");
-  const gridG = document.createElementNS(SVG_NS, "g");
-  gridG.setAttribute("class", "gridG");
   const contentG = document.createElementNS(SVG_NS, "g");
   contentG.setAttribute("class", "contentG");
+  const gridG = document.createElementNS(SVG_NS, "g");
+  gridG.setAttribute("class", "gridG");
+  // Чтобы сетка не "съедала" клики на инструментах — пропускаем pointer events.
+  gridG.setAttribute("pointer-events", "none");
   const overlayG = document.createElementNS(SVG_NS, "g");
   overlayG.setAttribute("class", "overlayG");
+  overlayG.setAttribute("pointer-events", "none");
   svgEl.appendChild(defs);
-  svgEl.appendChild(gridG);
+  // Порядок (z-order снизу-вверх):
+  //  1) contentG — лист, штамп, чертёж пользователя
+  //  2) gridG    — сетка поверх листа (полупрозрачная)
+  //  3) overlayG — измерения линейкой/транспортиром
   svgEl.appendChild(contentG);
+  svgEl.appendChild(gridG);
   svgEl.appendChild(overlayG);
 
   const v = {
@@ -347,9 +354,11 @@ function exportSvg(v, filename) {
       t.removeAttribute("transform");
     }
   });
-  // overlay убираем
+  // overlay и сетку при экспорте убираем — это вспомогательные слои
   const overlay = clone.querySelector(".overlayG");
   if (overlay) overlay.remove();
+  const grid = clone.querySelector(".gridG");
+  if (grid) grid.remove();
 
   const xml = new XMLSerializer().serializeToString(clone);
   const blob = new Blob([xml], { type: "image/svg+xml" });
@@ -374,6 +383,8 @@ function exportPng(v, filename) {
   });
   const overlay = clone.querySelector(".overlayG");
   if (overlay) overlay.remove();
+  const grid = clone.querySelector(".gridG");
+  if (grid) grid.remove();
 
   const xml = new XMLSerializer().serializeToString(clone);
   const blob = new Blob([xml], { type: "image/svg+xml" });

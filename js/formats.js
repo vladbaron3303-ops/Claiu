@@ -1,4 +1,4 @@
-/* Размеры бумаги по ГОСТ 2.301, мм. Сначала указана короткая сторона (книжная). */
+/* Размеры бумаги по ГОСТ 2.301, мм. Указана пара (короткая, длинная). */
 const PAPER_SIZES = {
   A4: [210, 297],
   A3: [297, 420],
@@ -10,22 +10,15 @@ const PAPER_SIZES = {
 /* Поля рамки ГОСТ 2.301: слева 20 мм (для подшивки), остальные 5 мм. */
 const FRAME_MARGINS = { left: 20, top: 5, right: 5, bottom: 5 };
 
-/* Размеры основной надписи ГОСТ 2.104 (форма 1, конструкторская). */
+/* Размеры основной надписи ГОСТ 2.104, форма 1 — 185×55 мм. */
 const STAMP_W = 185;
 const STAMP_H = 55;
 
-/**
- * Вернёт {w,h} листа с учётом ориентации.
- */
 function paperSize(format, orientation) {
   const [a, b] = PAPER_SIZES[format] || PAPER_SIZES.A3;
   return orientation === "landscape" ? { w: b, h: a } : { w: a, h: b };
 }
 
-/**
- * Построить SVG-разметку формата (рамка + штамп) и добавить в группу <g>.
- * Возвращает прямоугольник «рабочего поля» внутри рамки.
- */
 function buildFormat(svgNS, parent, opts) {
   const { w, h } = paperSize(opts.format, opts.orientation);
   const ml = FRAME_MARGINS.left, mt = FRAME_MARGINS.top, mr = FRAME_MARGINS.right, mb = FRAME_MARGINS.bottom;
@@ -37,7 +30,7 @@ function buildFormat(svgNS, parent, opts) {
   bg.setAttribute("class", "paper-bg");
   parent.appendChild(bg);
 
-  // Внешняя тонкая граница листа
+  // Внешняя тонкая граница листа (обрезной край)
   const outer = document.createElementNS(svgNS, "rect");
   outer.setAttribute("x", 0); outer.setAttribute("y", 0);
   outer.setAttribute("width", w); outer.setAttribute("height", h);
@@ -46,142 +39,154 @@ function buildFormat(svgNS, parent, opts) {
   outer.setAttribute("fill", "none");
   parent.appendChild(outer);
 
-  // Внутренняя рамка чертежа
+  // Рамка чертежа
   if (opts.frame) {
     const frame = document.createElementNS(svgNS, "rect");
     frame.setAttribute("x", ml); frame.setAttribute("y", mt);
     frame.setAttribute("width", w - ml - mr); frame.setAttribute("height", h - mt - mb);
     frame.setAttribute("class", "gost-line");
     frame.setAttribute("stroke-width", "0.7");
+    frame.setAttribute("fill", "none");
     parent.appendChild(frame);
   }
 
-  // Штамп
+  // Штамп — размещаем в нижнем правом углу рабочей области рамки
   if (opts.stamp) {
-    drawStamp(svgNS, parent, w - mr - STAMP_W, h - mb - STAMP_H, opts.title || {});
+    const sx = w - mr - STAMP_W;
+    const sy = h - mb - STAMP_H;
+    drawStamp(svgNS, parent, sx, sy, opts.title || {});
   }
 
   return {
     paper: { w, h },
-    work: { x: ml, y: mt, w: w - ml - mr, h: h - mt - mb - (opts.stamp ? STAMP_H : 0) }
+    work: {
+      x: ml, y: mt,
+      w: w - ml - mr,
+      h: h - mt - mb - (opts.stamp ? STAMP_H : 0)
+    }
   };
 }
 
-/**
- * Штамп ГОСТ 2.104 (упрощённая форма 1: 11 строк по 5 мм, левая графа имён, правая графа реквизитов).
- *  Сетка клеток:
- *  - столбцы (слева→направо): 7, 10, 23, 15, 10, 110 (итого 185 — реквизитная часть = 70 мм слева, графа 110 мм справа)
- *  - строки 5 мм; высота 55 мм.
- *  Реализуем визуально близко к ГОСТ.
- */
-function drawStamp(svgNS, parent, x, y, t) {
-  const g = document.createElementNS(svgNS, "g");
+/* =================================================================
+ *  Штамп ГОСТ 2.104, форма 1 — упрощённая, аккуратная реализация.
+ *  Габарит: 185 × 55 мм.
+ *  Левая часть (65 мм) — таблица изменений (сверху) + графы должностей (снизу).
+ *  Правая часть (120 мм) — наименование, обозначение, материал, литера/масса/масштаб, лист/листов, школа.
+ * =================================================================*/
+function drawStamp(ns, parent, x, y, t) {
+  const g = document.createElementNS(ns, "g");
   g.setAttribute("transform", `translate(${x}, ${y})`);
+  parent.appendChild(g);
 
   const W = STAMP_W, H = STAMP_H;
+  const SPLIT = 65;           // граница левой/правой части
+  const THICK = 0.7;          // толстые линии
+  const THIN = 0.3;           // тонкие линии
 
-  // внешний прямоугольник
-  rect(g, svgNS, 0, 0, W, H, 0.7);
+  // Внешний контур и главная вертикаль
+  rect(g, ns, 0, 0, W, H, THICK);
+  line(g, ns, SPLIT, 0, SPLIT, H, THICK);
 
-  // вертикальное деление: левая часть (имена) 65 мм, правая (наименование) 120 мм
-  // Сделаем по ГОСТ: 65 + 120 = 185
-  const splitX = 65;
-  line(g, svgNS, splitX, 0, splitX, H, 0.7);
+  /* ---------- ЛЕВАЯ ЧАСТЬ (0..65) ---------- */
+  // Верхняя секция (0..30, таблица изменений): 5 колонок 7+10+23+15+10
+  // Нижняя секция (30..55, должности 5 строк): 4 колонки 7+10+23+15+10 → объединяем первые две в "Должность" 17 мм, далее "Фамилия" 23, "Подпись" 15, "Дата" 10.
+  const lcols = [0, 7, 17, 40, 55, 65];
 
-  // Левая часть: 5 столбцов: 7, 10, 23, 15, 10  (итого 65)
-  const colsL = [7, 10, 23, 15, 10];
-  let cx = 0;
-  const colXs = [0];
-  colsL.forEach(c => { cx += c; colXs.push(cx); line(g, svgNS, cx, 0, cx, H, 0.35); });
-
-  // Горизонтальные линии каждые 5 мм для левой части (11 строк)
+  // Горизонтали слева, строки по 5 мм
   for (let i = 1; i < 11; i++) {
-    line(g, svgNS, 0, i * 5, splitX, i * 5, 0.35);
+    const w = (i === 6) ? THICK : THIN;  // строка 6 разделяет блоки изменений и должностей
+    line(g, ns, 0, i * 5, SPLIT, i * 5, w);
   }
+  // Вертикали в верхней секции (изменения) — 4 разделителя
+  for (let i = 1; i < 5; i++) {
+    line(g, ns, lcols[i], 0, lcols[i], 30, THIN);
+  }
+  // Вертикали в нижней секции (должности): "Должность"(17)|"Фамилия"(23)|"Подпись"(15)|"Дата"(10)
+  line(g, ns, 17, 30, 17, H, THIN);
+  line(g, ns, 40, 30, 40, H, THIN);
+  line(g, ns, 55, 30, 55, H, THIN);
 
-  // Заголовки строк левой части (графы №): Изм | Лист | № докум. | Подп. | Дата
-  const headers = ["Изм.", "Лист", "№ докум.", "Подп.", "Дата"];
+  // Заголовки таблицы изменений (строка 1, сверху по серёдке каждой колонки)
+  text(g, ns, lcols[0] + 3.5,  3.6, "Изм.",     2.0, "middle");
+  text(g, ns, lcols[1] + 5,    3.6, "Лист",     2.0, "middle");
+  text(g, ns, lcols[2] + 11.5, 3.6, "№ докум.", 2.0, "middle");
+  text(g, ns, lcols[3] + 7.5,  3.6, "Подп.",    2.0, "middle");
+  text(g, ns, lcols[4] + 5,    3.6, "Дата",     2.0, "middle");
+
+  // Должности (5 строк по 5 мм, с y=30 до y=55)
+  const roles = ["Разраб.", "Пров.", "Т.контр.", "Н.контр.", "Утв."];
   for (let i = 0; i < 5; i++) {
-    text(g, svgNS, colXs[i] + colsL[i] / 2, 5 - 1.3, headers[i], 2.5, "middle");
+    text(g, ns, 1.5, 30 + i * 5 + 3.6, roles[i], 2.3, "start");
   }
+  // ФИО разработчика и проверяющего — в колонке "Фамилия" (17..40)
+  const fioMid = (17 + 40) / 2;
+  if (t.author)  text(g, ns, fioMid, 30 + 0 * 5 + 3.6, fitText(t.author,  21), 2.3, "middle");
+  if (t.checker) text(g, ns, fioMid, 30 + 1 * 5 + 3.6, fitText(t.checker, 21), 2.3, "middle");
 
-  // Должностная графа: Разраб., Пров., Т.контр., (пусто), Н.контр., Утв.
-  // По ГОСТ строки 6..11 (после трёх строк заголовков) — но мы используем строки 3..8
-  const roles = [
-    { row: 2, text: "Разраб." },
-    { row: 3, text: "Пров." },
-    { row: 4, text: "Т.контр." },
-    { row: 6, text: "Н.контр." },
-    { row: 7, text: "Утв." }
-  ];
-  roles.forEach(r => {
-    text(g, svgNS, 1, r.row * 5 + 3.4, r.text, 2.5, "start");
-  });
+  /* ---------- ПРАВАЯ ЧАСТЬ (65..185) ---------- */
+  // Структура (сверху вниз):
+  //   y 0..30 — НАИМЕНОВАНИЕ изделия (большая ячейка, шрифт 5 мм)
+  //   y 30..40 — слева 70 мм: ОБОЗНАЧЕНИЕ (шифр), справа 50 мм: «Лит. | Масса | Масштаб» (метки 30..35, значения 35..40), доп. вертикали 20+20+10
+  //   y 40..55 — слева 70 мм: МАТЕРИАЛ + УЧЕБНОЕ ЗАВЕДЕНИЕ, справа 50 мм: «Лист | Листов» (метки 40..45, значения 45..55), горизонтальная вертикаль по середине (25+25)
+  const RX = SPLIT;             // 65
+  const RW = W - RX;            // 120
+  const colA = RX + 70;         // граница "70/50"
 
-  // ФИО Разработал/Проверил в столбце 23 мм (3-й столбец)
-  if (t.author) text(g, svgNS, colXs[2] + colsL[2] / 2, 2 * 5 + 3.4, t.author, 2.5, "middle");
-  if (t.checker) text(g, svgNS, colXs[2] + colsL[2] / 2, 3 * 5 + 3.4, t.checker, 2.5, "middle");
+  // Главные горизонтали
+  line(g, ns, RX, 30, W,    30, THICK);   // под наименованием
+  line(g, ns, RX, 40, W,    40, THIN);    // между обозначением и материалом
+  line(g, ns, RX, 35, colA + 50, 35, 0); // (зарезерв.)
 
-  // Правая часть (наименование и реквизиты)
-  // Деление правой части: верх 30 мм — наименование, ниже строки реквизитов
-  // Подразделим: верхняя клетка 30×120 — наименование изделия
-  // Ниже: масштаб | лист | листов на одной строке (15 мм)
-  // Ниже: материал и т.п.
-  const RX = splitX;
-  // Горизонтали правой части
-  line(g, svgNS, RX, 30, W, 30, 0.7);          // под наименованием
-  line(g, svgNS, RX, 35, W, 35, 0.35);         // строка обозначения чертежа
-  line(g, svgNS, RX, 40, W, 40, 0.35);
-  line(g, svgNS, RX, 45, W, 45, 0.35);
-  line(g, svgNS, RX, 50, W, 50, 0.35);
+  // Левая колонка правой части (70 мм)
+  line(g, ns, colA, 30, colA, H, THIN);   // граница 70/50
 
-  // Вертикали правой части: после splitX делим на колонки
-  // Колонки: 70 (обозначение/наименование) + 50 (литера/масса/масштаб/лист) = 120
-  const c1 = splitX + 70;
-  line(g, svgNS, c1, 30, c1, H, 0.35);
+  // Линии в левой подколонке (обозначение / материал / школа)
+  line(g, ns, RX, 50, colA, 50, THIN);    // под материалом — отделяем школу
 
-  // Подколонки в правой нижней: 50 мм поделим на Лит(20) Масса(20) Масштаб(10)
-  // По ГОСТ: Лит(20) — три клетки литеры; Масса(20); Масштаб(10).
-  // Упростим:
-  const c2 = c1 + 20;       // конец «Лит.»
-  const c3 = c2 + 20;       // конец «Масса»
-  // c3 + 10 = W
-  line(g, svgNS, c2, 30, c2, 45, 0.35);
-  line(g, svgNS, c3, 30, c3, 45, 0.35);
+  // Правая 50 мм — таблица Лит/Масса/Масштаб + Лист/Листов
+  const b1 = colA + 20;  // конец «Лит.»
+  const b2 = colA + 40;  // конец «Масса»; конец «Лист» в нижнем ряду — colA+25
+  line(g, ns, b1, 30, b1, 40, THIN);
+  line(g, ns, b2, 30, b2, 40, THIN);
+  line(g, ns, colA, 35, W, 35, THIN);    // подзаголовок (значения ниже)
 
-  // Подписи маленькие
-  text(g, svgNS, splitX + 1, 30 + 2.2, "Обозначение", 1.8, "start", "#777");
-  text(g, svgNS, splitX + 1, 36.5, t.designation || "", 3.5, "start");
+  // Нижняя строка 40..55 справа — Лист/Листов: ширины 25/25
+  const b3 = colA + 25;
+  line(g, ns, b3, 40, b3, H, THIN);
+  line(g, ns, colA, 45, W, 45, THIN);    // подписи 40..45, значения 45..55
 
-  // Литера / Масса / Масштаб подписи
-  text(g, svgNS, splitX + 1, 35 + 2.2, "Лит.", 1.8, "start", "#777"); // не точно по ГОСТ, но информативно
-  text(g, svgNS, c1 + 10, 30 + 3.5, "Лит.", 2.2, "middle", "#777");
-  text(g, svgNS, c1 + 30, 30 + 3.5, "Масса", 2.2, "middle", "#777");
-  text(g, svgNS, c1 + 45, 30 + 3.5, "Масштаб", 2.2, "middle", "#777");
+  // НАИМЕНОВАНИЕ (центр большой ячейки)
+  if (t.name) text(g, ns, RX + RW / 2, 20, fitText(t.name, 110), 5.0, "middle");
 
-  // значения
-  text(g, svgNS, c1 + 30, 40, t.mass || "", 3, "middle");
-  text(g, svgNS, c1 + 45, 40, t.scale || "1:1", 3.5, "middle");
+  // ОБОЗНАЧЕНИЕ (центр ячейки 65..135, y 30..40)
+  if (t.designation) text(g, ns, RX + 35, 37, fitText(t.designation, 65), 4.5, "middle");
 
-  // Наименование (большая ячейка 30×70)
-  text(g, svgNS, splitX + 35, 18, t.name || "", 5, "middle");
+  // МАТЕРИАЛ (центр ячейки 65..135, y 40..50)
+  if (t.material) text(g, ns, RX + 35, 47, fitText(t.material, 65), 3.2, "middle");
 
-  // Лист / Листов
-  text(g, svgNS, c1 + 10, 49, "Лист", 2.2, "middle", "#777");
-  text(g, svgNS, c1 + 30, 49, "Листов", 2.2, "middle", "#777");
-  text(g, svgNS, c1 + 10, 53, "1", 3, "middle");
-  text(g, svgNS, c1 + 30, 53, "1", 3, "middle");
+  // ШКОЛА / литера (узкая полоска внизу левой подколонки 65..135, y 50..55)
+  if (t.school) text(g, ns, RX + 35, 53.5, fitText(t.school, 65), 2.8, "middle");
 
-  // Учебное заведение / литера (под наименованием — правее)
-  text(g, svgNS, c1 + 45, 53, t.school || "", 3, "middle");
+  // Подписи правой таблицы (Лит / Масса / Масштаб) — y 30..35
+  text(g, ns, colA + 10, 33.5, "Лит.",   2.0, "middle", "#666");
+  text(g, ns, colA + 30, 33.5, "Масса",  2.0, "middle", "#666");
+  text(g, ns, colA + 45, 33.5, "Масштаб", 2.0, "middle", "#666");
 
-  // Материал и т.п. можно положить в нижние строки наименования
-  if (t.material) text(g, svgNS, splitX + 35, 27, t.material, 3, "middle");
+  // Значения Лит / Масса / Масштаб — y 35..40
+  text(g, ns, colA + 10, 38.5, "У", 3.0, "middle");      // литера: учебная
+  if (t.mass)  text(g, ns, colA + 30, 38.5, fitText(t.mass, 18), 2.8, "middle");
+  text(g, ns, colA + 45, 38.5, fitText(t.scale || "1:1", 9), 3.0, "middle");
 
-  parent.appendChild(g);
+  // Подписи Лист / Листов — y 40..45
+  text(g, ns, colA + 12.5, 43.5, "Лист",   2.0, "middle", "#666");
+  text(g, ns, colA + 37.5, 43.5, "Листов", 2.0, "middle", "#666");
+
+  // Значения Лист / Листов — y 45..55
+  text(g, ns, colA + 12.5, 51, "1", 3.5, "middle");
+  text(g, ns, colA + 37.5, 51, "1", 3.5, "middle");
 }
 
-/* Утилиты для штампа */
+/* ===== утилиты ===== */
 function rect(parent, ns, x, y, w, h, sw) {
   const r = document.createElementNS(ns, "rect");
   r.setAttribute("x", x); r.setAttribute("y", y);
@@ -192,6 +197,7 @@ function rect(parent, ns, x, y, w, h, sw) {
   parent.appendChild(r);
 }
 function line(parent, ns, x1, y1, x2, y2, sw) {
+  if (sw === 0) return;
   const l = document.createElementNS(ns, "line");
   l.setAttribute("x1", x1); l.setAttribute("y1", y1);
   l.setAttribute("x2", x2); l.setAttribute("y2", y2);
@@ -208,4 +214,10 @@ function text(parent, ns, x, y, str, size, anchor, color) {
   if (color) t.setAttribute("fill", color);
   t.textContent = str;
   parent.appendChild(t);
+}
+/* Грубое обрезание длинного текста под ширину ячейки (по символам) */
+function fitText(s, maxChars) {
+  if (!s) return "";
+  s = String(s);
+  return s.length > maxChars ? s.slice(0, maxChars - 1) + "…" : s;
 }

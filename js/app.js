@@ -395,16 +395,16 @@ const EXAMPLE_DRAWING = `{
     "material": "Сталь 45 ГОСТ 1050-2013",
     "author": "Иванов А.А.",
     "checker": "Петров Б.Б.",
-    "school": "МГТУ, гр. ИУ7-12Б"
+    "school": "МГТУ ИУ7-12"
   },
   "origin": { "x": 80, "y": 60 },
   "elements": [
-    { "type": "rect", "x": 0, "y": 0, "width": 180, "height": 100, "style": "solid", "width_": 0.7 },
-    { "type": "circle", "cx": 30, "cy": 30, "r": 10, "style": "solid", "center": true },
-    { "type": "circle", "cx": 150, "cy": 30, "r": 10, "style": "solid", "center": true },
-    { "type": "circle", "cx": 30, "cy": 70, "r": 10, "style": "solid", "center": true },
-    { "type": "circle", "cx": 150, "cy": 70, "r": 10, "style": "solid", "center": true },
-    { "type": "circle", "cx": 90, "cy": 50, "r": 25, "style": "solid", "center": true },
+    { "type": "rect", "x": 0, "y": 0, "width": 180, "height": 100, "style": "solid", "weight": 0.7 },
+    { "type": "circle", "cx": 30, "cy": 30, "r": 10, "style": "solid", "weight": 0.7, "center": true },
+    { "type": "circle", "cx": 150, "cy": 30, "r": 10, "style": "solid", "weight": 0.7, "center": true },
+    { "type": "circle", "cx": 30, "cy": 70, "r": 10, "style": "solid", "weight": 0.7, "center": true },
+    { "type": "circle", "cx": 150, "cy": 70, "r": 10, "style": "solid", "weight": 0.7, "center": true },
+    { "type": "circle", "cx": 90, "cy": 50, "r": 25, "style": "solid", "weight": 0.7, "center": true },
 
     { "type": "line", "x1": -10, "y1": 50, "x2": 190, "y2": 50, "style": "axis" },
     { "type": "line", "x1": 90, "y1": -10, "x2": 90, "y2": 110, "style": "axis" },
@@ -412,32 +412,45 @@ const EXAMPLE_DRAWING = `{
     { "type": "dimension", "kind": "linear", "x1": 0, "y1": 100, "x2": 180, "y2": 100, "offset": 15, "value": "180" },
     { "type": "dimension", "kind": "linear", "x1": 180, "y1": 0, "x2": 180, "y2": 100, "offset": 15, "value": "100" },
     { "type": "dimension", "kind": "linear", "x1": 30, "y1": 30, "x2": 150, "y2": 30, "offset": -10, "value": "120" },
-    { "type": "dimension", "kind": "diameter", "cx": 90, "cy": 50, "r": 25, "angle": 30 },
-    { "type": "dimension", "kind": "diameter", "cx": 30, "cy": 30, "r": 10, "angle": 45 }
+    { "type": "dimension", "kind": "diameter", "cx": 90, "cy": 50, "r": 25, "angle": 30, "value": "50" },
+    { "type": "dimension", "kind": "diameter", "cx": 30, "cy": 30, "r": 10, "angle": 45, "value": "20" }
   ]
 }`;
 
+/* Пример: равнобедренный треугольник ABC (AB=BC), BH — высота, AC=14 см, ∠A=∠C, найти AH.
+   Решение: т.к. треугольник равнобедренный, высота из вершины делит основание пополам ⇒ AH = 7 см. */
 const EXAMPLE_GEOMETRY = `{
   "version": "1.0",
   "mode": "geometry",
-  "viewport": { "width": 300, "height": 200 },
-  "origin": { "x": 30, "y": 30 },
+  "viewport": { "width": 280, "height": 200 },
+  "origin": { "x": 40, "y": 30 },
   "elements": [
-    { "type": "polygon", "points": [[0,120],[200,120],[80,0]], "style": "solid" },
+    { "type": "polygon", "points": [[0,120],[200,120],[100,0]], "style": "solid", "weight": 0.7 },
 
-    { "type": "point", "x": 0, "y": 120, "label": "A", "labelDx": -6, "labelDy": 6 },
-    { "type": "point", "x": 200, "y": 120, "label": "B", "labelDx": 4, "labelDy": 6 },
-    { "type": "point", "x": 80, "y": 0, "label": "C", "labelDx": -2, "labelDy": -3 },
+    { "type": "line", "x1": 100, "y1": 0, "x2": 100, "y2": 120, "style": "solid", "weight": 0.7 },
 
-    { "type": "line", "x1": 80, "y1": 0, "x2": 100, "y2": 120, "style": "thin" },
-    { "type": "point", "x": 100, "y": 120, "label": "M", "labelDx": 2, "labelDy": 10 },
+    { "type": "polyline", "points": [[96,120],[96,116],[100,116]], "style": "solid", "weight": 0.4 },
 
-    { "type": "circle", "cx": 80, "cy": 80, "r": 60, "style": "thin" },
+    { "type": "point", "x": 0,   "y": 120, "label": "A", "labelDx": -7, "labelDy": 6 },
+    { "type": "point", "x": 200, "y": 120, "label": "C", "labelDx": 4,  "labelDy": 6 },
+    { "type": "point", "x": 100, "y": 0,   "label": "B", "labelDx": -2, "labelDy": -3 },
+    { "type": "point", "x": 100, "y": 120, "label": "H", "labelDx": -2, "labelDy": 9 },
 
-    { "type": "angle", "vertex": [0,120], "p1": [200,120], "p2": [80,0], "label": "α", "radius": 18 },
-    { "type": "angle", "vertex": [200,120], "p1": [80,0], "p2": [0,120], "label": "β", "radius": 18 },
-    { "type": "angle", "vertex": [80,0], "p1": [0,120], "p2": [200,120], "label": "γ", "radius": 14 },
+    { "type": "angle", "vertex": [0,120],   "p1": [200,120], "p2": [100,0], "radius": 10 },
+    { "type": "angle", "vertex": [200,120], "p1": [100,0],   "p2": [0,120], "radius": 10 },
 
-    { "type": "dimension", "kind": "aligned", "x1": 0, "y1": 120, "x2": 200, "y2": 120, "offset": 12, "value": "AB = 20" }
+    { "type": "dimension", "kind": "linear", "x1": 0, "y1": 120, "x2": 200, "y2": 120, "offset": 18, "value": "AC = 14 см" },
+    { "type": "dimension", "kind": "linear", "x1": 0, "y1": 120, "x2": 100, "y2": 120, "offset": 8,  "value": "AH = ?" },
+
+    { "type": "text", "x": 230, "y": 20,  "text": "Дано:",  "size": 5 },
+    { "type": "text", "x": 230, "y": 32,  "text": "AC = 14 см",  "size": 4 },
+    { "type": "text", "x": 230, "y": 42,  "text": "∠A = ∠C",    "size": 4 },
+    { "type": "text", "x": 230, "y": 52,  "text": "BH ⊥ AC",    "size": 4 },
+    { "type": "text", "x": 230, "y": 72,  "text": "Найти:", "size": 5 },
+    { "type": "text", "x": 230, "y": 84,  "text": "AH — ?",    "size": 4 },
+    { "type": "text", "x": 230, "y": 104, "text": "Решение:", "size": 5 },
+    { "type": "text", "x": 230, "y": 116, "text": "AB = BC ⇒",   "size": 4 },
+    { "type": "text", "x": 230, "y": 126, "text": "BH — медиана", "size": 4 },
+    { "type": "text", "x": 230, "y": 138, "text": "AH = AC/2 = 7 см", "size": 4 }
   ]
 }`;

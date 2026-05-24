@@ -21,8 +21,14 @@ const LINE_STYLES = {
 
 function stylize(el, opts) {
   const s = LINE_STYLES[opts.style || "solid"] || LINE_STYLES.solid;
+  // ВНИМАНИЕ: для толщины линии используется поле "weight" (или legacy "lineWidth"/"strokeWidth").
+  // Поле "width" зарезервировано под ширину прямоугольника и не используется здесь.
+  const w = opts.weight != null ? opts.weight
+          : opts.lineWidth != null ? opts.lineWidth
+          : opts.strokeWidth != null ? opts.strokeWidth
+          : s.weight;
   el.setAttribute("stroke", opts.color || "#111");
-  el.setAttribute("stroke-width", opts.width != null ? opts.width : s.weight);
+  el.setAttribute("stroke-width", w);
   if (s.dasharray) el.setAttribute("stroke-dasharray", s.dasharray);
   el.setAttribute("fill", opts.fill || "none");
   el.setAttribute("stroke-linecap", "round");
